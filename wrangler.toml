@@ -1,0 +1,245 @@
+name = "evaluation-api"
+account_id = "08880824c72d378ddc93cde1f5c15b13"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+# =============================================================================
+# 共通設定
+# =============================================================================
+
+# Cloudflare Access認証用環境変数
+[vars]
+CF_ACCESS_TEAM_NAME = "tokiwa-tech"
+API_VERSION = "v1"
+# CF_ACCESS_AUD はセキュリティのためシークレットとして設定
+# wrangler secret put CF_ACCESS_AUD で設定
+
+[dev]
+port = 8788
+
+# D1 Database
+[[d1_databases]]
+binding = "DB"
+database_name = "evaluation-db"
+database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+migrations_dir = "database/migrations"
+
+# Workflows
+[[workflows]]
+name = "evaluation-workflow"
+binding = "EVALUATION_WORKFLOW"
+class_name = "EvaluationWorkflow"
+
+[[workflows]]
+name = "curriculum-workflow"
+binding = "CURRICULUM_WORKFLOW"
+class_name = "CurriculumWorkflow"
+
+# Queues
+[[queues.producers]]
+queue = "evaluation-notifications"
+binding = "NOTIFICATION_QUEUE"
+
+[[queues.consumers]]
+queue = "evaluation-notifications"
+max_batch_size = 10
+max_batch_timeout = 30
+
+# AI (Cloudflare AI for curriculum generation)
+[ai]
+binding = "AI"
+
+# KV Namespace (セッション・キャッシュ用)
+[[kv_namespaces]]
+binding = "CACHE"
+id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+# =============================================================================
+# 本番環境 (Production)
+# =============================================================================
+[env.production]
+name = "evaluation-api"
+routes = [
+  { pattern = "evaluation.tokiwa-tech.com/api/*", zone_name = "tokiwa-tech.com" }
+]
+
+[env.production.vars]
+CF_ACCESS_TEAM_NAME = "tokiwa-tech"
+API_VERSION = "v1"
+ENVIRONMENT = "production"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "evaluation-db"
+database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+migrations_dir = "database/migrations"
+
+[[env.production.workflows]]
+name = "evaluation-workflow"
+binding = "EVALUATION_WORKFLOW"
+class_name = "EvaluationWorkflow"
+
+[[env.production.workflows]]
+name = "curriculum-workflow"
+binding = "CURRICULUM_WORKFLOW"
+class_name = "CurriculumWorkflow"
+
+[[env.production.queues.producers]]
+queue = "evaluation-notifications"
+binding = "NOTIFICATION_QUEUE"
+
+[[env.production.queues.consumers]]
+queue = "evaluation-notifications"
+max_batch_size = 10
+max_batch_timeout = 30
+
+[env.production.ai]
+binding = "AI"
+
+[[env.production.kv_namespaces]]
+binding = "CACHE"
+id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+# =============================================================================
+# ステージング環境 (Staging)
+# =============================================================================
+[env.staging]
+name = "evaluation-api-staging"
+routes = [
+  { pattern = "evaluation-staging.tokiwa-tech.com/api/*", zone_name = "tokiwa-tech.com" }
+]
+
+[env.staging.vars]
+CF_ACCESS_TEAM_NAME = "tokiwa-tech"
+API_VERSION = "v1"
+ENVIRONMENT = "staging"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "evaluation-db-staging"
+database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+migrations_dir = "database/migrations"
+
+[[env.staging.workflows]]
+name = "evaluation-workflow-staging"
+binding = "EVALUATION_WORKFLOW"
+class_name = "EvaluationWorkflow"
+
+[[env.staging.workflows]]
+name = "curriculum-workflow-staging"
+binding = "CURRICULUM_WORKFLOW"
+class_name = "CurriculumWorkflow"
+
+[[env.staging.queues.producers]]
+queue = "evaluation-notifications-staging"
+binding = "NOTIFICATION_QUEUE"
+
+[[env.staging.queues.consumers]]
+queue = "evaluation-notifications-staging"
+max_batch_size = 10
+max_batch_timeout = 30
+
+[env.staging.ai]
+binding = "AI"
+
+[[env.staging.kv_namespaces]]
+binding = "CACHE"
+id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+# =============================================================================
+# バッチ処理 Worker (リマインダー・通知)
+# =============================================================================
+[env.reminder_batch]
+name = "evaluation-reminder-batch"
+main = "src/workers/reminderBatchWorker.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+[env.reminder_batch.triggers]
+# リマインダーチェック: 毎日 09:00 JST (UTC 00:00)
+# 期限超過チェック: 毎日 10:00 JST (UTC 01:00)
+crons = ["0 0 * * *", "0 1 * * *"]
+
+[env.reminder_batch.vars]
+ENVIRONMENT = "production"
+
+[[env.reminder_batch.d1_databases]]
+binding = "DB"
+database_name = "evaluation-db"
+database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+[[env.reminder_batch.queues.producers]]
+queue = "evaluation-notifications"
+binding = "NOTIFICATION_QUEUE"
+
+# =============================================================================
+# バッチ処理 Worker (ステージング)
+# =============================================================================
+[env.reminder_batch_staging]
+name = "evaluation-reminder-batch-staging"
+main = "src/workers/reminderBatchWorker.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+[env.reminder_batch_staging.triggers]
+# ステージング: 毎時実行 (テスト用)
+crons = ["0 * * * *"]
+
+[env.reminder_batch_staging.vars]
+ENVIRONMENT = "staging"
+
+[[env.reminder_batch_staging.d1_databases]]
+binding = "DB"
+database_name = "evaluation-db-staging"
+database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+[[env.reminder_batch_staging.queues.producers]]
+queue = "evaluation-notifications-staging"
+binding = "NOTIFICATION_QUEUE"
+
+# =============================================================================
+# 通知処理 Worker
+# =============================================================================
+[env.notification_worker]
+name = "evaluation-notification-worker"
+main = "src/workers/notificationWorker.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+[env.notification_worker.vars]
+ENVIRONMENT = "production"
+# SLACK_WEBHOOK_URL は wrangler secret put で設定
+# EMAIL_API_KEY は wrangler secret put で設定
+
+[[env.notification_worker.d1_databases]]
+binding = "DB"
+database_name = "evaluation-db"
+database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+[[env.notification_worker.queues.consumers]]
+queue = "evaluation-notifications"
+max_batch_size = 10
+max_batch_timeout = 30
+
+# =============================================================================
+# 通知処理 Worker (ステージング)
+# =============================================================================
+[env.notification_worker_staging]
+name = "evaluation-notification-worker-staging"
+main = "src/workers/notificationWorker.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+[env.notification_worker_staging.vars]
+ENVIRONMENT = "staging"
+
+[[env.notification_worker_staging.d1_databases]]
+binding = "DB"
+database_name = "evaluation-db-staging"
+database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+[[env.notification_worker_staging.queues.consumers]]
+queue = "evaluation-notifications-staging"
+max_batch_size = 10
+max_batch_timeout = 30

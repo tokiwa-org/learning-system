@@ -1,0 +1,3222 @@
+openapi: 3.1.0
+info:
+  title: 人事考課システム API
+  description: |
+    トキワテック人事考課システムのREST API仕様書。
+
+    ## 認証
+    Cloudflare Access (JWT) による認証を使用します。
+    全てのAPIリクエストには `Authorization: Bearer <token>` ヘッダーが必要です。
+
+    ## 共通仕様
+    - 日時はISO 8601形式 (例: `2026-01-24T10:00:00Z`)
+    - IDはUUID v4形式
+    - ページネーションはoffset/limit方式
+  version: 1.0.0
+  contact:
+    name: トキワテック開発チーム
+    email: dev@tokiwa-tech.com
+  license:
+    name: Proprietary
+    identifier: LicenseRef-proprietary
+
+servers:
+  - url: https://evaluation.tokiwa-tech.com/api/v1
+    description: 本番環境
+  - url: https://evaluation-staging.tokiwa-tech.com/api/v1
+    description: ステージング環境
+  - url: http://localhost:8787/api/v1
+    description: ローカル開発環境
+
+tags:
+  - name: Auth
+    description: 認証関連API
+  - name: Periods
+    description: 評価期間管理
+  - name: Cycles
+    description: 評価サイクル管理
+  - name: Self Evaluation
+    description: 自己評価
+  - name: Peer Evaluation
+    description: 同僚評価
+  - name: Manager Evaluation
+    description: 上司評価
+  - name: HR
+    description: 人事管理
+  - name: Employees
+    description: 社員管理
+  - name: Roadmap
+    description: ロードマップ・スキル管理
+  - name: Organizations
+    description: 組織管理
+  - name: Notifications
+    description: 通知
+  - name: Dashboard
+    description: ダッシュボード
+  - name: Scenarios
+    description: シナリオ（文章題）
+  - name: Curriculum
+    description: カリキュラム
+  - name: Export
+    description: データエクスポート
+  - name: Admin
+    description: 管理者機能
+
+paths:
+  # ============================================
+  # 認証 API (2 endpoints)
+  # ============================================
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: ログイン
+      description: メールアドレスとパスワードでログインし、JWTトークンを取得
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: ログイン成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: ログアウト
+      operationId: logout
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: ログアウト成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: 現在のユーザー情報取得
+      operationId: getCurrentUser
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: ユーザー情報
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+
+  # ============================================
+  # 評価期間 API (5 endpoints)
+  # ============================================
+  /periods:
+    get:
+      tags: [Periods]
+      summary: 評価期間一覧取得
+      operationId: listPeriods
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PeriodStatus'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: 評価期間一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PeriodListResponse'
+
+    post:
+      tags: [Periods]
+      summary: 評価期間作成
+      description: 管理者のみ実行可能
+      operationId: createPeriod
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePeriodRequest'
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PeriodResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /periods/{periodId}:
+    get:
+      tags: [Periods]
+      summary: 評価期間詳細取得
+      operationId: getPeriod
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PeriodId'
+      responses:
+        '200':
+          description: 評価期間詳細
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PeriodDetailResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /periods/{periodId}/activate:
+    put:
+      tags: [Periods]
+      summary: 評価期間開始
+      description: PREPARING → ACTIVE に遷移。ロードマップのスナップショットを作成
+      operationId: activatePeriod
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PeriodId'
+      responses:
+        '200':
+          description: 開始成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PeriodResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /periods/{periodId}/close:
+    put:
+      tags: [Periods]
+      summary: 評価期間終了
+      description: ACTIVE → CLOSED に遷移
+      operationId: closePeriod
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PeriodId'
+      responses:
+        '200':
+          description: 終了成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PeriodResponse'
+
+  # ============================================
+  # 評価サイクル API (4 endpoints)
+  # ============================================
+  /cycles:
+    get:
+      tags: [Cycles]
+      summary: 自分の評価サイクル一覧
+      operationId: listMyCycles
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: periodId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 評価サイクル一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CycleListResponse'
+
+  /cycles/{cycleId}:
+    get:
+      tags: [Cycles]
+      summary: 評価サイクル詳細取得
+      operationId: getCycle
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CycleId'
+      responses:
+        '200':
+          description: 評価サイクル詳細
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CycleDetailResponse'
+
+  /admin/cycles:
+    get:
+      tags: [Admin, Cycles]
+      summary: 全評価サイクル一覧
+      description: 管理者のみ
+      operationId: listAllCycles
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: periodId
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/CycleStatus'
+        - name: departmentId
+          in: query
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: 全評価サイクル一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CycleListResponse'
+
+  # ============================================
+  # 自己評価 API (3 endpoints)
+  # ============================================
+  /cycles/{cycleId}/self-evaluation:
+    get:
+      tags: [Self Evaluation]
+      summary: 自己評価取得
+      operationId: getSelfEvaluation
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CycleId'
+      responses:
+        '200':
+          description: 自己評価データ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SelfEvaluationResponse'
+
+    put:
+      tags: [Self Evaluation]
+      summary: 自己評価保存（下書き）
+      operationId: saveSelfEvaluation
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CycleId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveSelfEvaluationRequest'
+      responses:
+        '200':
+          description: 保存成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SelfEvaluationResponse'
+
+  /cycles/{cycleId}/self-evaluation/submit:
+    post:
+      tags: [Self Evaluation]
+      summary: 自己評価提出
+      operationId: submitSelfEvaluation
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CycleId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                comment:
+                  type: string
+                  description: 提出コメント
+      responses:
+        '200':
+          description: 提出成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ============================================
+  # 同僚評価 API (5 endpoints)
+  # ============================================
+  /cycles/{cycleId}/peer-evaluations:
+    get:
+      tags: [Peer Evaluation]
+      summary: 同僚評価一覧取得
+      operationId: listPeerEvaluations
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CycleId'
+      responses:
+        '200':
+          description: 同僚評価一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PeerEvaluationListResponse'
+
+  # 注: 同僚評価の詳細操作は /cycles/:cycleId/peer-evaluations/:peerId/* に統合
+
+  # ============================================
+  # 上司評価 API (6 endpoints)
+  # ============================================
+  /manager/cycles:
+    get:
+      tags: [Manager Evaluation]
+      summary: 部下の評価サイクル一覧
+      operationId: listSubordinateCycles
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: periodId
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/CycleStatus'
+      responses:
+        '200':
+          description: 部下の評価サイクル一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CycleListResponse'
+
+  /cycles/{cycleId}/manager-evaluation:
+    get:
+      tags: [Manager Evaluation]
+      summary: 上司評価取得
+      operationId: getManagerEvaluation
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CycleId'
+      responses:
+        '200':
+          description: 上司評価データ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManagerEvaluationResponse'
+
+    put:
+      tags: [Manager Evaluation]
+      summary: 上司評価保存
+      operationId: saveManagerEvaluation
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CycleId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveManagerEvaluationRequest'
+      responses:
+        '200':
+          description: 保存成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManagerEvaluationResponse'
+
+  /cycles/{cycleId}/manager-evaluation/submit:
+    post:
+      tags: [Manager Evaluation]
+      summary: 上司評価提出
+      operationId: submitManagerEvaluation
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CycleId'
+      responses:
+        '200':
+          description: 提出成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /cycles/{cycleId}/approve:
+    post:
+      tags: [Manager Evaluation, HR]
+      summary: 評価承認
+      operationId: approveCycle
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CycleId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                comment:
+                  type: string
+      responses:
+        '200':
+          description: 承認成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /cycles/{cycleId}/reject:
+    post:
+      tags: [Manager Evaluation, HR]
+      summary: 評価差戻し
+      operationId: rejectCycle
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CycleId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RejectRequest'
+      responses:
+        '200':
+          description: 差戻し成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ============================================
+  # HR API (統合済み - cycles/:cycleId/approve, reject で対応)
+  # ============================================
+  # 注: HR承認機能は /cycles/:cycleId/approve, /cycles/:cycleId/reject に統合
+  # requireRole('HR', 'ADMIN') でアクセス制御
+
+  # ============================================
+  # 社員 API (5 endpoints)
+  # ============================================
+  /employees:
+    get:
+      tags: [Employees]
+      summary: 社員一覧
+      operationId: listEmployees
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: departmentId
+          in: query
+          schema:
+            type: string
+        - name: gradeId
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: 社員一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeListResponse'
+
+  /employees/{employeeId}:
+    get:
+      tags: [Employees]
+      summary: 社員詳細取得
+      operationId: getEmployee
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EmployeeId'
+      responses:
+        '200':
+          description: 社員詳細
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeDetailResponse'
+
+    put:
+      tags: [Employees]
+      summary: 社員情報更新
+      operationId: updateEmployee
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EmployeeId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateEmployeeRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeDetailResponse'
+
+  /employees/{employeeId}/achievements:
+    get:
+      tags: [Employees]
+      summary: 社員のスキル達成状況
+      operationId: getEmployeeAchievements
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EmployeeId'
+      responses:
+        '200':
+          description: スキル達成状況
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AchievementResponse'
+
+  /employees/{employeeId}/learning-progress:
+    get:
+      tags: [Employees, Curriculum]
+      summary: 社員の学習進捗取得
+      operationId: getEmployeeLearningProgress
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EmployeeId'
+      responses:
+        '200':
+          description: 学習進捗
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LearningProgressResponse'
+
+  # ============================================
+  # ロードマップ API (3 endpoints)
+  # ============================================
+  /roadmap-items:
+    get:
+      tags: [Roadmap]
+      summary: ロードマップ項目一覧
+      operationId: listRoadmapItems
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: category
+          in: query
+          schema:
+            $ref: '#/components/schemas/AxisCode'
+        - name: gradeId
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ロードマップ項目一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoadmapItemListResponse'
+
+  /roadmap-items/{itemId}:
+    get:
+      tags: [Roadmap]
+      summary: ロードマップ項目詳細
+      operationId: getRoadmapItem
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ロードマップ項目詳細
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoadmapItemDetailResponse'
+
+  /roadmap-items/{itemId}/achievements:
+    post:
+      tags: [Roadmap]
+      summary: 達成状況更新
+      operationId: updateAchievement
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAchievementRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ============================================
+  # 組織 API (マスタデータはemployees APIに統合)
+  # ============================================
+  # 注: 部署・職級マスタは /employees エンドポイントのレスポンスに含まれる
+  # または Admin API で管理
+
+  # ============================================
+  # 通知 API (3 endpoints)
+  # ============================================
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: 通知一覧
+      operationId: listNotifications
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: unreadOnly
+          in: query
+          schema:
+            type: boolean
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: 通知一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationListResponse'
+
+  /notifications/{notificationId}/read:
+    put:
+      tags: [Notifications]
+      summary: 既読にする
+      operationId: markNotificationRead
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 既読化成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /notifications/read-all:
+    put:
+      tags: [Notifications]
+      summary: 全て既読にする
+      operationId: markAllNotificationsRead
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 全既読化成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ============================================
+  # ダッシュボード API (2 endpoints)
+  # ============================================
+  /dashboard:
+    get:
+      tags: [Dashboard]
+      summary: ダッシュボードデータ
+      operationId: getDashboard
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: ダッシュボードデータ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardResponse'
+
+  /admin/dashboard:
+    get:
+      tags: [Admin, Dashboard]
+      summary: 管理者ダッシュボード
+      operationId: getAdminDashboard
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 管理者ダッシュボードデータ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminDashboardResponse'
+
+  # ============================================
+  # シナリオ API (5 endpoints)
+  # ============================================
+  /scenarios:
+    get:
+      tags: [Scenarios]
+      summary: 文章題一覧取得
+      operationId: listScenarios
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: targetGrade
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/ScenarioStatus'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: シナリオ一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScenarioListResponse'
+
+    post:
+      tags: [Scenarios]
+      summary: 文章題作成
+      operationId: createScenario
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateScenarioRequest'
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScenarioResponse'
+
+  /scenarios/{scenarioId}:
+    get:
+      tags: [Scenarios]
+      summary: 文章題詳細取得
+      operationId: getScenario
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ScenarioId'
+      responses:
+        '200':
+          description: シナリオ詳細
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScenarioDetailResponse'
+
+    put:
+      tags: [Scenarios]
+      summary: 文章題更新
+      operationId: updateScenario
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ScenarioId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateScenarioRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScenarioResponse'
+
+    delete:
+      tags: [Scenarios]
+      summary: 文章題削除
+      description: 管理者のみ
+      operationId: deleteScenario
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ScenarioId'
+      responses:
+        '200':
+          description: 削除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /scenarios/{scenarioId}/questions:
+    post:
+      tags: [Scenarios]
+      summary: 設問追加
+      description: HR/管理者のみ
+      operationId: addScenarioQuestion
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ScenarioId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateQuestionRequest'
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScenarioQuestionResponse'
+
+  /scenarios/{scenarioId}/review:
+    post:
+      tags: [Scenarios]
+      summary: シナリオレビュー
+      description: HR/管理者のみ
+      operationId: reviewScenario
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ScenarioId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [approved]
+              properties:
+                approved:
+                  type: boolean
+                comment:
+                  type: string
+      responses:
+        '200':
+          description: レビュー完了
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScenarioResponse'
+
+  /scenarios/{scenarioId}/publish:
+    post:
+      tags: [Scenarios]
+      summary: シナリオ公開
+      description: HR/管理者のみ
+      operationId: publishScenario
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ScenarioId'
+      responses:
+        '200':
+          description: 公開成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScenarioResponse'
+
+  /scenarios/{scenarioId}/generate-curriculum:
+    post:
+      tags: [Scenarios, Curriculum]
+      summary: カリキュラム自動生成
+      operationId: generateCurriculum
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ScenarioId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateCurriculumRequest'
+      responses:
+        '202':
+          description: 生成開始（非同期）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurriculumGenerationResponse'
+
+  # ============================================
+  # カリキュラム API (11 endpoints)
+  # ============================================
+  /curriculums:
+    get:
+      tags: [Curriculum]
+      summary: カリキュラム一覧取得
+      operationId: listCurriculums
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: scenarioId
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/CurriculumStatus'
+        - name: learningPhase
+          in: query
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: カリキュラム一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurriculumListResponse'
+
+    post:
+      tags: [Curriculum]
+      summary: カリキュラム作成
+      description: HR/管理者のみ
+      operationId: createCurriculum
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCurriculumRequest'
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurriculumResponse'
+
+  /curriculums/my-assignments:
+    get:
+      tags: [Curriculum]
+      summary: 自分の割り当てカリキュラム一覧
+      operationId: listMyAssignments
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: 割り当て一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurriculumAssignmentListResponse'
+
+  /curriculums/{curriculumId}:
+    get:
+      tags: [Curriculum]
+      summary: カリキュラム詳細取得
+      operationId: getCurriculum
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CurriculumId'
+      responses:
+        '200':
+          description: カリキュラム詳細
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurriculumDetailResponse'
+
+    put:
+      tags: [Curriculum]
+      summary: カリキュラム更新
+      description: HR/管理者のみ
+      operationId: updateCurriculum
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CurriculumId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCurriculumRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurriculumResponse'
+
+  /curriculums/{curriculumId}/review:
+    post:
+      tags: [Curriculum]
+      summary: カリキュラムレビュー
+      description: HR/管理者のみ
+      operationId: reviewCurriculum
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CurriculumId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [approved]
+              properties:
+                approved:
+                  type: boolean
+                comment:
+                  type: string
+      responses:
+        '200':
+          description: レビュー完了
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurriculumResponse'
+
+  /curriculums/{curriculumId}/publish:
+    post:
+      tags: [Curriculum]
+      summary: カリキュラム公開
+      description: HR/管理者のみ
+      operationId: publishCurriculum
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CurriculumId'
+      responses:
+        '200':
+          description: 公開成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurriculumResponse'
+
+  /curriculums/{curriculumId}/assign:
+    post:
+      tags: [Curriculum]
+      summary: カリキュラム割り当て
+      description: HR/管理者/マネージャーのみ
+      operationId: assignCurriculum
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CurriculumId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignCurriculumRequest'
+      responses:
+        '201':
+          description: 割り当て成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurriculumAssignmentResponse'
+
+  /curriculums/{curriculumId}/progress:
+    get:
+      tags: [Curriculum]
+      summary: 学習進捗取得
+      operationId: getCurriculumProgress
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CurriculumId'
+      responses:
+        '200':
+          description: 学習進捗
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurriculumProgressResponse'
+
+    put:
+      tags: [Curriculum]
+      summary: 学習進捗更新
+      operationId: updateCurriculumProgress
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CurriculumId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCurriculumProgressRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /curriculums/{curriculumId}/complete:
+    post:
+      tags: [Curriculum]
+      summary: カリキュラム完了
+      operationId: completeCurriculum
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CurriculumId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                totalScore:
+                  type: number
+      responses:
+        '200':
+          description: 完了処理成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurriculumCompletionResponse'
+
+  # ============================================
+  # 昇格 API (将来実装予定)
+  # ============================================
+  # 注: 昇格機能は将来バージョンで実装予定
+
+  # ============================================
+  # Admin API (6 endpoints)
+  # ============================================
+  /admin/settings:
+    get:
+      tags: [Admin]
+      summary: システム設定取得
+      operationId: getSettings
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: システム設定
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettingsResponse'
+
+    put:
+      tags: [Admin]
+      summary: システム設定更新
+      operationId: updateSettings
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSettingsRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettingsResponse'
+
+  /admin/statistics:
+    get:
+      tags: [Admin]
+      summary: システム統計取得
+      operationId: getStatistics
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: システム統計
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatisticsResponse'
+
+  /admin/export:
+    post:
+      tags: [Admin, Export]
+      summary: エクスポートジョブ開始
+      operationId: startExportJob
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportRequest'
+      responses:
+        '202':
+          description: ジョブ開始（非同期）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportJobResponse'
+
+  /admin/export/{jobId}:
+    get:
+      tags: [Admin, Export]
+      summary: エクスポートジョブ状態取得
+      operationId: getExportJobStatus
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ジョブ状態
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportJobStatusResponse'
+
+  /admin/audit-logs:
+    get:
+      tags: [Admin]
+      summary: 監査ログ取得
+      operationId: listAuditLogs
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: userId
+          in: query
+          schema:
+            type: string
+        - name: entityType
+          in: query
+          schema:
+            type: string
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: 監査ログ一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditLogListResponse'
+
+  # ============================================
+  # ワークフロー管理 API (2 endpoints)
+  # ============================================
+  /admin/cycles/{cycleId}/workflow:
+    get:
+      tags: [Admin]
+      summary: ワークフロー状態確認
+      operationId: getWorkflowStatus
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CycleId'
+      responses:
+        '200':
+          description: ワークフロー状態
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowStatusResponse'
+
+  /admin/cycles/{cycleId}/workflow/resume:
+    post:
+      tags: [Admin]
+      summary: ワークフロー再開/操作
+      operationId: resumeWorkflow
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CycleId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowActionRequest'
+      responses:
+        '200':
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Cloudflare Access JWT token
+
+  parameters:
+    PeriodId:
+      name: periodId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: 評価期間ID
+
+    CycleId:
+      name: cycleId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: 評価サイクルID
+
+    EmployeeId:
+      name: employeeId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: 社員ID
+
+    PeerEvaluationId:
+      name: peerEvaluationId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: 同僚評価ID
+
+    ScenarioId:
+      name: scenarioId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: シナリオID
+
+    CurriculumId:
+      name: curriculumId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: カリキュラムID
+
+    PeriodStatus:
+      name: status
+      in: query
+      schema:
+        type: string
+        enum: [PREPARING, ACTIVE, CLOSED]
+      description: 評価期間ステータス
+
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      description: ページ番号
+
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      description: 1ページあたりの件数
+
+  responses:
+    Unauthorized:
+      description: 認証エラー
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Forbidden:
+      description: 権限不足
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    NotFound:
+      description: リソースなし
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Conflict:
+      description: 状態競合
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    # ============================================
+    # 共通スキーマ
+    # ============================================
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+
+    Pagination:
+      type: object
+      properties:
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+        hasNext:
+          type: boolean
+
+    # ============================================
+    # 列挙型
+    # ============================================
+    CycleStatus:
+      type: string
+      enum:
+        - DRAFT
+        - SELF_SUBMITTED
+        - PEER_COMPLETED
+        - MANAGER_SUBMITTED
+        - MANAGER_APPROVED
+        - HR_APPROVED
+        - FINALIZED
+        - REJECTED
+
+    AxisCode:
+      type: string
+      enum: [SKILL, COMPETENCY, BEHAVIOR]
+
+    Rank:
+      type: string
+      enum: [S, A, B, C, D]
+
+    ScenarioStatus:
+      type: string
+      enum: [DRAFT, GENERATED, REVIEWED, PUBLISHED, ARCHIVED]
+
+    CurriculumStatus:
+      type: string
+      enum: [DRAFT, GENERATED, REVIEWED, PUBLISHED, ARCHIVED]
+
+    Difficulty:
+      type: string
+      enum: [BEGINNER, INTERMEDIATE, ADVANCED, EXPERT]
+
+    # ============================================
+    # 認証関連
+    # ============================================
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+
+    LoginResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            token:
+              type: string
+            expiresAt:
+              type: string
+              format: date-time
+            user:
+              $ref: '#/components/schemas/User'
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [EMPLOYEE, MANAGER, HR, ADMIN]
+        departmentId:
+          type: string
+        gradeId:
+          type: string
+
+    UserResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/User'
+
+    # ============================================
+    # 評価期間
+    # ============================================
+    Period:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        evaluationMonth:
+          type: integer
+          minimum: 1
+          maximum: 12
+        status:
+          type: string
+          enum: [PREPARING, ACTIVE, CLOSED]
+
+    CreatePeriodRequest:
+      type: object
+      required: [name, startDate, endDate, evaluationMonth]
+      properties:
+        name:
+          type: string
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        evaluationMonth:
+          type: integer
+          minimum: 1
+          maximum: 12
+
+    PeriodResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/Period'
+
+    PeriodListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Period'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    PeriodDetailResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          allOf:
+            - $ref: '#/components/schemas/Period'
+            - type: object
+              properties:
+                criteria:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/EvaluationCriteria'
+                cycleStats:
+                  type: object
+                  properties:
+                    total:
+                      type: integer
+                    byStatus:
+                      type: object
+                      additionalProperties:
+                        type: integer
+
+    EvaluationCriteria:
+      type: object
+      properties:
+        axisCode:
+          $ref: '#/components/schemas/AxisCode'
+        axisName:
+          type: string
+        weight:
+          type: integer
+        maxScore:
+          type: integer
+
+    # ============================================
+    # 評価サイクル
+    # ============================================
+    Cycle:
+      type: object
+      properties:
+        id:
+          type: string
+        periodId:
+          type: string
+        employeeId:
+          type: string
+        status:
+          $ref: '#/components/schemas/CycleStatus'
+        currentStep:
+          type: string
+        finalScore:
+          type: integer
+          nullable: true
+        finalRank:
+          $ref: '#/components/schemas/Rank'
+
+    CycleListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Cycle'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    CycleDetailResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          allOf:
+            - $ref: '#/components/schemas/Cycle'
+            - type: object
+              properties:
+                period:
+                  $ref: '#/components/schemas/Period'
+                employee:
+                  $ref: '#/components/schemas/EmployeeSummary'
+                selfEvaluation:
+                  $ref: '#/components/schemas/SelfEvaluationSummary'
+                peerEvaluations:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/PeerEvaluationSummary'
+                managerEvaluation:
+                  $ref: '#/components/schemas/ManagerEvaluationSummary'
+                approvalHistory:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/ApprovalHistory'
+
+    EmployeeSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        department:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+
+    SelfEvaluationSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        submittedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    PeerEvaluationSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        evaluator:
+          $ref: '#/components/schemas/EmployeeSummary'
+        submittedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    ManagerEvaluationSummary:
+      type: object
+      nullable: true
+      properties:
+        id:
+          type: string
+        submittedAt:
+          type: string
+          format: date-time
+          nullable: true
+        totalScore:
+          type: number
+          nullable: true
+
+    ApprovalHistory:
+      type: object
+      properties:
+        step:
+          type: string
+        action:
+          type: string
+        actorId:
+          type: string
+        comment:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    # ============================================
+    # 自己評価
+    # ============================================
+    SelfEvaluationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+            cycleId:
+              type: string
+            comment:
+              type: string
+              nullable: true
+            scores:
+              type: array
+              items:
+                $ref: '#/components/schemas/EvaluationScore'
+            submittedAt:
+              type: string
+              format: date-time
+              nullable: true
+
+    EvaluationScore:
+      type: object
+      properties:
+        roadmapItemId:
+          type: string
+        roadmapItem:
+          $ref: '#/components/schemas/RoadmapItemSummary'
+        score:
+          type: integer
+          minimum: 1
+          maximum: 5
+        evidence:
+          type: string
+          nullable: true
+        comment:
+          type: string
+          nullable: true
+
+    RoadmapItemSummary:
+      type: object
+      properties:
+        itemNumber:
+          type: integer
+        category:
+          $ref: '#/components/schemas/AxisCode'
+        title:
+          type: string
+
+    SaveSelfEvaluationRequest:
+      type: object
+      properties:
+        comment:
+          type: string
+        scores:
+          type: array
+          items:
+            type: object
+            properties:
+              roadmapItemId:
+                type: string
+              score:
+                type: integer
+                minimum: 1
+                maximum: 5
+              evidence:
+                type: string
+              comment:
+                type: string
+
+    # ============================================
+    # 同僚評価
+    # ============================================
+    PeerEvaluationListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/PeerEvaluation'
+
+    PeerEvaluation:
+      type: object
+      properties:
+        id:
+          type: string
+        cycle:
+          type: object
+          properties:
+            id:
+              type: string
+            period:
+              $ref: '#/components/schemas/Period'
+        targetEmployee:
+          $ref: '#/components/schemas/EmployeeSummary'
+        submittedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    PeerEvaluationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          allOf:
+            - $ref: '#/components/schemas/PeerEvaluation'
+            - type: object
+              properties:
+                scores:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/EvaluationScore'
+                strengths:
+                  type: string
+                  nullable: true
+                improvements:
+                  type: string
+                  nullable: true
+
+    SavePeerEvaluationRequest:
+      type: object
+      properties:
+        scores:
+          type: array
+          items:
+            type: object
+            properties:
+              roadmapItemId:
+                type: string
+              score:
+                type: integer
+                minimum: 1
+                maximum: 5
+              comment:
+                type: string
+        strengths:
+          type: string
+        improvements:
+          type: string
+
+    # ============================================
+    # 上司評価
+    # ============================================
+    ManagerEvaluationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+            cycleId:
+              type: string
+            scores:
+              type: array
+              items:
+                $ref: '#/components/schemas/EvaluationScore'
+            skillScore:
+              type: number
+              nullable: true
+            competencyScore:
+              type: number
+              nullable: true
+            behaviorScore:
+              type: number
+              nullable: true
+            totalScore:
+              type: number
+              nullable: true
+            rankSuggestion:
+              $ref: '#/components/schemas/Rank'
+            overallComment:
+              type: string
+              nullable: true
+            submittedAt:
+              type: string
+              format: date-time
+              nullable: true
+
+    SaveManagerEvaluationRequest:
+      type: object
+      properties:
+        scores:
+          type: array
+          items:
+            type: object
+            properties:
+              roadmapItemId:
+                type: string
+              score:
+                type: integer
+                minimum: 1
+                maximum: 5
+              comment:
+                type: string
+        skillScore:
+          type: number
+        competencyScore:
+          type: number
+        behaviorScore:
+          type: number
+        totalScore:
+          type: number
+        rankSuggestion:
+          $ref: '#/components/schemas/Rank'
+        overallComment:
+          type: string
+
+    RejectRequest:
+      type: object
+      required: [comment]
+      properties:
+        comment:
+          type: string
+        rejectToStep:
+          type: string
+          enum: [SELF, PEER, MANAGER]
+
+    FinalizeRequest:
+      type: object
+      required: [finalRank]
+      properties:
+        finalRank:
+          $ref: '#/components/schemas/Rank'
+        salaryIncrement:
+          type: integer
+        comment:
+          type: string
+
+    # ============================================
+    # 社員
+    # ============================================
+    Employee:
+      type: object
+      properties:
+        id:
+          type: string
+        employeeCode:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        department:
+          $ref: '#/components/schemas/Department'
+        grade:
+          $ref: '#/components/schemas/Grade'
+        currentStep:
+          type: integer
+        manager:
+          $ref: '#/components/schemas/EmployeeSummary'
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE, LEAVE]
+        joinedAt:
+          type: string
+          format: date
+
+    EmployeeListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Employee'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    EmployeeDetailResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/Employee'
+
+    UpdateEmployeeRequest:
+      type: object
+      properties:
+        departmentId:
+          type: string
+        gradeId:
+          type: string
+        managerId:
+          type: string
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE, LEAVE]
+
+    # ============================================
+    # スキル達成状況
+    # ============================================
+    AchievementResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            summary:
+              type: object
+              properties:
+                total:
+                  type: integer
+                completed:
+                  type: integer
+                inProgress:
+                  type: integer
+                notStarted:
+                  type: integer
+            byCategory:
+              type: object
+              additionalProperties:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  completed:
+                    type: integer
+            items:
+              type: array
+              items:
+                type: object
+                properties:
+                  roadmapItem:
+                    $ref: '#/components/schemas/RoadmapItemSummary'
+                  status:
+                    type: string
+                    enum: [NOT_STARTED, IN_PROGRESS, COMPLETED]
+                  completedAt:
+                    type: string
+                    format: date-time
+                    nullable: true
+
+    UpdateAchievementRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [NOT_STARTED, IN_PROGRESS, COMPLETED]
+        evidence:
+          type: string
+
+    # ============================================
+    # ロードマップ
+    # ============================================
+    RoadmapItem:
+      type: object
+      properties:
+        id:
+          type: string
+        itemNumber:
+          type: integer
+        category:
+          $ref: '#/components/schemas/AxisCode'
+        categoryName:
+          type: string
+        subcategory:
+          type: string
+          nullable: true
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        levels:
+          type: array
+          items:
+            type: object
+            properties:
+              gradeId:
+                type: string
+              gradeCode:
+                type: string
+              requirement:
+                type: string
+              isRequired:
+                type: boolean
+
+    RoadmapItemListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoadmapItem'
+
+    RoadmapItemDetailResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/RoadmapItem'
+
+    # ============================================
+    # 組織
+    # ============================================
+    Department:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        parentId:
+          type: string
+          nullable: true
+
+    DepartmentListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Department'
+
+    Grade:
+      type: object
+      properties:
+        id:
+          type: string
+        code:
+          type: string
+        name:
+          type: string
+        level:
+          type: integer
+        description:
+          type: string
+          nullable: true
+
+    GradeListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Grade'
+
+    # ============================================
+    # 通知
+    # ============================================
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        title:
+          type: string
+        message:
+          type: string
+        link:
+          type: string
+          nullable: true
+        isRead:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    NotificationListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    # ============================================
+    # ダッシュボード
+    # ============================================
+    DashboardResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            currentPeriod:
+              $ref: '#/components/schemas/Period'
+            myCycle:
+              $ref: '#/components/schemas/Cycle'
+            pendingPeerEvaluations:
+              type: integer
+            subordinateCycles:
+              type: array
+              items:
+                type: object
+                properties:
+                  employeeId:
+                    type: string
+                  employeeName:
+                    type: string
+                  status:
+                    $ref: '#/components/schemas/CycleStatus'
+                  awaitsAction:
+                    type: boolean
+            notifications:
+              type: array
+              items:
+                $ref: '#/components/schemas/Notification'
+
+    AdminDashboardResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            currentPeriod:
+              $ref: '#/components/schemas/Period'
+            cycleStats:
+              type: object
+              properties:
+                total:
+                  type: integer
+                byStatus:
+                  type: object
+                  additionalProperties:
+                    type: integer
+            departmentProgress:
+              type: array
+              items:
+                type: object
+                properties:
+                  departmentId:
+                    type: string
+                  departmentName:
+                    type: string
+                  total:
+                    type: integer
+                  completed:
+                    type: integer
+
+    # ============================================
+    # シナリオ・カリキュラム
+    # ============================================
+    Scenario:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        targetGrades:
+          type: array
+          items:
+            type: string
+        skillCategory:
+          type: string
+        difficulty:
+          $ref: '#/components/schemas/Difficulty'
+        status:
+          $ref: '#/components/schemas/ScenarioStatus'
+        createdBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    ScenarioListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Scenario'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    ScenarioResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/Scenario'
+
+    ScenarioDetailResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          allOf:
+            - $ref: '#/components/schemas/Scenario'
+            - type: object
+              properties:
+                questions:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/ScenarioQuestion'
+                curriculum:
+                  $ref: '#/components/schemas/Curriculum'
+
+    ScenarioQuestion:
+      type: object
+      properties:
+        id:
+          type: string
+        questionNumber:
+          type: integer
+        questionType:
+          type: string
+          enum: [MULTIPLE_CHOICE, FREE_TEXT, CODE_REVIEW, SCENARIO_RESPONSE]
+        questionText:
+          type: string
+        options:
+          type: array
+          items:
+            type: string
+          nullable: true
+        points:
+          type: integer
+
+    CreateScenarioRequest:
+      type: object
+      required: [title, description, targetGrades, skillCategory]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        targetGrades:
+          type: array
+          items:
+            type: string
+        skillCategory:
+          type: string
+        difficulty:
+          $ref: '#/components/schemas/Difficulty'
+
+    UpdateScenarioRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        targetGrades:
+          type: array
+          items:
+            type: string
+        skillCategory:
+          type: string
+        difficulty:
+          $ref: '#/components/schemas/Difficulty'
+        status:
+          $ref: '#/components/schemas/ScenarioStatus'
+
+    GenerateCurriculumRequest:
+      type: object
+      required: [targetGradeId]
+      properties:
+        targetGradeId:
+          type: string
+        includeNoise:
+          type: boolean
+          default: true
+        noiseType:
+          type: string
+
+    CurriculumGenerationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            curriculumId:
+              type: string
+            title:
+              type: string
+            chapters:
+              type: array
+              items:
+                type: object
+            estimatedHours:
+              type: integer
+            status:
+              type: string
+
+    Curriculum:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        targetGrades:
+          type: array
+          items:
+            type: string
+        estimatedHours:
+          type: integer
+        status:
+          type: string
+
+    AssignCurriculumRequest:
+      type: object
+      required: [curriculumId, employeeIds]
+      properties:
+        curriculumId:
+          type: string
+        employeeIds:
+          type: array
+          items:
+            type: string
+        deadline:
+          type: string
+          format: date
+
+    LearningProgressResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            assignments:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  curriculumId:
+                    type: string
+                  curriculumName:
+                    type: string
+                  assignedAt:
+                    type: string
+                    format: date-time
+                  deadline:
+                    type: string
+                    format: date
+                    nullable: true
+                  progress:
+                    type: integer
+                  completedChapters:
+                    type: integer
+                  totalChapters:
+                    type: integer
+                  status:
+                    type: string
+
+    UpdateLearningProgressRequest:
+      type: object
+      required: [chapterId, status]
+      properties:
+        chapterId:
+          type: string
+        status:
+          type: string
+          enum: [NOT_STARTED, IN_PROGRESS, COMPLETED]
+
+    # ============================================
+    # 昇格
+    # ============================================
+    PromotionCandidateListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              employee:
+                $ref: '#/components/schemas/EmployeeSummary'
+              currentGrade:
+                $ref: '#/components/schemas/Grade'
+              targetGrade:
+                $ref: '#/components/schemas/Grade'
+              qualificationScore:
+                type: integer
+              skillAchievementRate:
+                type: number
+
+    PromotionRequest:
+      type: object
+      required: [employeeId, toGradeId]
+      properties:
+        employeeId:
+          type: string
+        toGradeId:
+          type: string
+        effectiveDate:
+          type: string
+          format: date
+        comment:
+          type: string
+
+    # ============================================
+    # 監査ログ
+    # ============================================
+    AuditLogListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              userId:
+                type: string
+              action:
+                type: string
+              entityType:
+                type: string
+              entityId:
+                type: string
+              oldValue:
+                type: object
+              newValue:
+                type: object
+              createdAt:
+                type: string
+                format: date-time
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    # ============================================
+    # ワークフロー
+    # ============================================
+    WorkflowStatusResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            status:
+              type: string
+              enum: [PENDING, RUNNING, WAITING, COMPLETED, FAILED, CANCELLED, TIMEOUT]
+            currentStep:
+              type: string
+            startedAt:
+              type: string
+              format: date-time
+            lastEventAt:
+              type: string
+              format: date-time
+
+    WorkflowActionRequest:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [SKIP_PEER_EVALUATION, FORCE_COMPLETE, RESUME]
+        comment:
+          type: string
+
+    # ============================================
+    # Admin - 設定・統計
+    # ============================================
+    SettingsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            evaluationScoreRange:
+              type: object
+              properties:
+                min:
+                  type: integer
+                max:
+                  type: integer
+            peerEvaluationLimit:
+              type: integer
+            reminderDays:
+              type: array
+              items:
+                type: integer
+            notificationChannels:
+              type: array
+              items:
+                type: string
+            allowSelfPeerSelection:
+              type: boolean
+            requireComment:
+              type: boolean
+            autoSubmitOnDeadline:
+              type: boolean
+
+    UpdateSettingsRequest:
+      type: object
+      properties:
+        evaluationScoreRange:
+          type: object
+          properties:
+            min:
+              type: integer
+            max:
+              type: integer
+        peerEvaluationLimit:
+          type: integer
+        reminderDays:
+          type: array
+          items:
+            type: integer
+        notificationChannels:
+          type: array
+          items:
+            type: string
+        allowSelfPeerSelection:
+          type: boolean
+        requireComment:
+          type: boolean
+        autoSubmitOnDeadline:
+          type: boolean
+
+    StatisticsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            totalEmployees:
+              type: integer
+            totalPeriods:
+              type: integer
+            totalCycles:
+              type: integer
+            totalScenarios:
+              type: integer
+            totalCurriculums:
+              type: integer
+            activePeriod:
+              type: object
+              nullable: true
+              properties:
+                id:
+                  type: string
+                name:
+                  type: string
+                startDate:
+                  type: string
+                  format: date
+                endDate:
+                  type: string
+                  format: date
+
+    ExportRequest:
+      type: object
+      properties:
+        format:
+          type: string
+          enum: [csv, excel, json]
+        entities:
+          type: array
+          items:
+            type: string
+        filters:
+          type: object
+
+    ExportJobResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            jobId:
+              type: string
+            status:
+              type: string
+            format:
+              type: string
+            entities:
+              type: array
+              items:
+                type: string
+            estimatedCompletionTime:
+              type: string
+              format: date-time
+
+    ExportJobStatusResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            jobId:
+              type: string
+            status:
+              type: string
+              enum: [PROCESSING, COMPLETED, FAILED]
+            progress:
+              type: integer
+            downloadUrl:
+              type: string
+              nullable: true
+            expiresAt:
+              type: string
+              format: date-time
+              nullable: true
+
+    # ============================================
+    # Scenarios - 設問
+    # ============================================
+    CreateQuestionRequest:
+      type: object
+      required: [questionNumber, questionType, questionText, points]
+      properties:
+        questionNumber:
+          type: integer
+        questionType:
+          type: string
+          enum: [MULTIPLE_CHOICE, FREE_TEXT, CODE_REVIEW, SCENARIO_RESPONSE]
+        questionText:
+          type: string
+        options:
+          type: array
+          items:
+            type: string
+        correctAnswer:
+          type: string
+        explanation:
+          type: string
+        points:
+          type: integer
+        relatedRoadmapItems:
+          type: array
+          items:
+            type: string
+
+    ScenarioQuestionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/ScenarioQuestion'
+
+    # ============================================
+    # Curriculum - 完全な管理
+    # ============================================
+    CurriculumListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Curriculum'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    CurriculumResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/Curriculum'
+
+    CurriculumDetailResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          allOf:
+            - $ref: '#/components/schemas/Curriculum'
+            - type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/CurriculumItem'
+
+    CurriculumItem:
+      type: object
+      properties:
+        id:
+          type: string
+        itemNumber:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          enum: [VIDEO, DOCUMENT, QUIZ, EXERCISE, ASSIGNMENT]
+        duration:
+          type: integer
+        passScore:
+          type: integer
+          nullable: true
+
+    CreateCurriculumRequest:
+      type: object
+      required: [scenarioId, name]
+      properties:
+        scenarioId:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        targetGrades:
+          type: array
+          items:
+            type: string
+        learningPhase:
+          type: string
+        estimatedHours:
+          type: integer
+        noiseTypes:
+          type: array
+          items:
+            type: string
+        llmModel:
+          type: string
+
+    UpdateCurriculumRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        targetGrades:
+          type: array
+          items:
+            type: string
+        learningPhase:
+          type: string
+        estimatedHours:
+          type: integer
+        status:
+          $ref: '#/components/schemas/CurriculumStatus'
+
+    CurriculumAssignmentListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CurriculumAssignment'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    CurriculumAssignment:
+      type: object
+      properties:
+        id:
+          type: string
+        curriculumId:
+          type: string
+        employeeId:
+          type: string
+        assignedBy:
+          type: string
+        assignedAt:
+          type: string
+          format: date-time
+        deadline:
+          type: string
+          format: date
+          nullable: true
+        passThreshold:
+          type: integer
+        progress:
+          type: integer
+        status:
+          type: string
+          enum: [ASSIGNED, IN_PROGRESS, COMPLETED, OVERDUE]
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        totalScore:
+          type: number
+          nullable: true
+        isPassed:
+          type: boolean
+          nullable: true
+        progressItems:
+          type: array
+          items:
+            type: object
+
+    CurriculumAssignmentResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/CurriculumAssignment'
+
+    CurriculumProgressResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            curriculumId:
+              type: string
+            assignmentId:
+              type: string
+            progress:
+              type: integer
+            status:
+              type: string
+            progressItems:
+              type: array
+              items:
+                type: object
+
+    UpdateCurriculumProgressRequest:
+      type: object
+      properties:
+        curriculumItemId:
+          type: string
+        status:
+          type: string
+          enum: [NOT_STARTED, IN_PROGRESS, COMPLETED]
+        score:
+          type: number
+        maxScore:
+          type: number
+        attempts:
+          type: integer
+        timeSpentMinutes:
+          type: integer
+        notes:
+          type: string
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        progress:
+          type: integer
+
+    CurriculumCompletionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            curriculumId:
+              type: string
+            assignmentId:
+              type: string
+            status:
+              type: string
+            totalScore:
+              type: number
+            isPassed:
+              type: boolean
