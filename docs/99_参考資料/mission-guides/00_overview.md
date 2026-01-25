@@ -7,16 +7,16 @@
 
 ---
 
-## 1. ガイド構成
+## 1. カリキュラム構成
 
 | ファイル | 対象 | 内容 |
 |---------|------|------|
-| [01_L0_mission_guide.md](./01_L0_mission_guide.md) | L0（未経験者） | IT基礎、ビジネスマナー |
-| [02_L1_mission_guide.md](./02_L1_mission_guide.md) | L1（新人） | 技術基礎、ツール操作 |
-| [03_L2_mission_guide.md](./03_L2_mission_guide.md) | L2（一人前） | 実務スキル、自律的業務 |
-| [04_L3_mission_guide.md](./04_L3_mission_guide.md) | L3（中堅） | リーダーシップ、設計力 |
-| [05_L4_mission_guide.md](./05_L4_mission_guide.md) | L4（シニア） | 組織影響、技術戦略 |
-| [06_L5_mission_guide.md](./06_L5_mission_guide.md) | L5（エキスパート） | 組織変革、業界影響 |
+| [01_L0_10months_curriculum.md](./01_L0_10months_curriculum.md) | L0（未経験者） | IT基礎、ビジネスマナー |
+| [02_L1_10months_curriculum.md](./02_L1_10months_curriculum.md) | L1（新人） | 技術基礎、ツール操作 |
+| [03_L2_10months_curriculum.md](./03_L2_10months_curriculum.md) | L2（一人前） | 実務スキル、自律的業務 |
+| [04_L3_10months_curriculum.md](./04_L3_10months_curriculum.md) | L3（中堅） | リーダーシップ、設計力 |
+| [05_L4_10months_curriculum.md](./05_L4_10months_curriculum.md) | L4（シニア） | 組織影響、技術戦略 |
+| [06_L5_10months_curriculum.md](./06_L5_10months_curriculum.md) | L5（エキスパート） | 組織変革、業界影響 |
 
 ---
 
