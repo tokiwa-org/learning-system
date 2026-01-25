@@ -34,3 +34,6 @@ src/generated/*.ts
 
 # Cloudflare
 .mf/
+
+# Claude Code
+.claude/
