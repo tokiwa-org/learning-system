@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>v86 PoC - Learning System</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            color: #4ade80;
+        }
+
+        .subtitle {
+            color: #888;
+            font-size: 0.9rem;
+            margin-top: 4px;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 900px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: #16213e;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            background: #0f3460;
+            padding: 12px 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .panel-body {
+            padding: 16px;
+        }
+
+        /* 学習コンテンツ */
+        .lesson-content h2 {
+            font-size: 1.1rem;
+            color: #4ade80;
+            margin-bottom: 12px;
+        }
+
+        .lesson-content h3 {
+            margin-top: 16px;
+            color: #f59e0b;
+        }
+
+        .lesson-content p {
+            line-height: 1.7;
+            margin-bottom: 12px;
+            color: #ccc;
+        }
+
+        .lesson-content code {
+            background: #0f3460;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            color: #f59e0b;
+        }
+
+        .command-box {
+            background: #0a0a0a;
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 12px;
+            margin: 12px 0;
+            font-family: 'Monaco', 'Consolas', monospace;
+        }
+
+        .command-box .prompt {
+            color: #4ade80;
+        }
+
+        .command-box .command {
+            color: #fff;
+        }
+
+        .checklist {
+            color: #ccc;
+            line-height: 2;
+            padding-left: 20px;
+        }
+
+        /* ターミナル */
+        .terminal-frame {
+            width: 100%;
+            height: 450px;
+            border: none;
+            background: #000;
+        }
+
+        .terminal-status {
+            padding: 8px 12px;
+            background: #0a0a0a;
+            border-top: 1px solid #333;
+            font-size: 0.8rem;
+            color: #888;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4ade80;
+        }
+
+        /* ナビゲーション */
+        .navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            padding: 16px;
+            background: #16213e;
+            border-radius: 8px;
+        }
+
+        .nav-btn {
+            background: #0f3460;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .nav-btn:hover {
+            background: #1e4976;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .step-indicator {
+            color: #888;
+        }
+
+        /* 注意書き */
+        .notice {
+            margin-top: 20px;
+            padding: 16px;
+            background: #1e3a5f;
+            border-left: 4px solid #f59e0b;
+            border-radius: 0 8px 8px 0;
+            font-size: 0.9rem;
+        }
+
+        .notice strong {
+            color: #f59e0b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 ミッション: 初めてのターミナルを起動しよう</h1>
+            <p class="subtitle">L0 - 月1 - ステップ1: 黒い画面の正体を知ろう</p>
+        </header>
+
+        <div class="main-content">
+            <!-- 学習コンテンツ -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span>📖</span>
+                    学習コンテンツ
+                </div>
+                <div class="panel-body lesson-content">
+                    <h2>最初の3コマンドを試してみよう</h2>
+
+                    <p>
+                        右側のターミナルで、以下のコマンドを実行してみましょう。
+                        Linuxが起動したら、プロンプト（$マーク）が表示されます。
+                    </p>
+
+                    <h3>1. 今いる場所を確認</h3>
+                    <div class="command-box">
+                        <span class="prompt">$ </span>
+                        <span class="command">pwd</span>
+                    </div>
+                    <p><code>pwd</code> は "Print Working Directory" の略。今いるフォルダのパスを表示します。</p>
+
+                    <h3>2. フォルダの中身を見る</h3>
+                    <div class="command-box">
+                        <span class="prompt">$ </span>
+                        <span class="command">ls</span>
+                    </div>
+                    <p><code>ls</code> は "List" の略。フォルダの中にあるファイルやフォルダを一覧表示します。</p>
+
+                    <h3>3. 詳細情報を見る</h3>
+                    <div class="command-box">
+                        <span class="prompt">$ </span>
+                        <span class="command">ls -la</span>
+                    </div>
+                    <p><code>-la</code> オプションで、隠しファイルや詳細情報も表示されます。</p>
+
+                    <h3 style="color: #4ade80;">✅ チェックポイント</h3>
+                    <ul class="checklist">
+                        <li><code>pwd</code> で <code>/root</code> と表示された</li>
+                        <li><code>ls</code> でファイル一覧が表示された</li>
+                        <li><code>ls -la</code> で詳細が表示された</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- ターミナル -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span>💻</span>
+                    Linux ターミナル (v86)
+                </div>
+                <div class="panel-body" style="padding: 0;">
+                    <iframe
+                        src="https://copy.sh/v86/?profile=linux26"
+                        class="terminal-frame"
+                        allow="cross-origin-isolated"
+                    ></iframe>
+                    <div class="terminal-status">
+                        <div class="status-indicator">
+                            <span class="status-dot"></span>
+                            <span>copy.sh/v86 デモ</span>
+                        </div>
+                        <span>クリックしてフォーカス</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="navigation">
+            <button class="nav-btn" disabled>← 前へ</button>
+            <span class="step-indicator">ステップ 1 / 6</span>
+            <button class="nav-btn">次へ →</button>
+        </div>
+
+        <div class="notice">
+            <strong>📝 PoC について:</strong><br>
+            このデモは copy.sh/v86 を iframe で埋め込んでいます。
+            本番環境では、v86 を自前ホストし、カスタム Linux イメージを使用します。
+        </div>
+    </div>
+</body>
+</html>
