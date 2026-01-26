@@ -34,6 +34,7 @@ import { LearningAssignment } from './LearningAssignment';
 import { ExerciseContent } from './ExerciseContent';
 import { MissionDetail } from './MissionDetail';
 import { CurriculumBook } from './CurriculumBook';
+import { LearningTerminal } from './LearningTerminal';
 
 type Page =
   | 'login'
@@ -49,6 +50,7 @@ type Page =
   | 'mission-detail'
   | 'exercise-content'
   | 'curriculum-book'
+  | 'learning-terminal'
   | 'manager-dashboard'
   | 'manager-evaluation'
   | 'evaluation-approval'
@@ -294,6 +296,8 @@ export default function App() {
       return <ExerciseContent />;
     case 'curriculum-book':
       return <CurriculumBook />;
+    case 'learning-terminal':
+      return <LearningTerminal />;
     default:
       return <Dashboard />;
   }
