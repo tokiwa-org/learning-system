@@ -35,6 +35,7 @@ import { ExerciseContent } from './ExerciseContent';
 import { MissionDetail } from './MissionDetail';
 import { CurriculumBook } from './CurriculumBook';
 import { LearningTerminal } from './LearningTerminal';
+import { LearningTerminalV2 } from './LearningTerminalV2';
 
 type Page =
   | 'login'
@@ -51,6 +52,7 @@ type Page =
   | 'exercise-content'
   | 'curriculum-book'
   | 'learning-terminal'
+  | 'learning-terminal-v2'
   | 'manager-dashboard'
   | 'manager-evaluation'
   | 'evaluation-approval'
@@ -72,7 +74,7 @@ type Page =
   | 'help-documentation';
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState<Page>('login');
+  const [currentPage, setCurrentPage] = useState<Page>('learning-terminal-v2'); // TODO: 本番では 'login' に戻す
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -298,6 +300,8 @@ export default function App() {
       return <CurriculumBook />;
     case 'learning-terminal':
       return <LearningTerminal />;
+    case 'learning-terminal-v2':
+      return <LearningTerminalV2 />;
     default:
       return <Dashboard />;
   }

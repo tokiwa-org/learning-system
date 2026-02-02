@@ -64,7 +64,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, userRole = 'employee' 
       : userRole === 'admin'
         ? adminMenuItems
         : employeeMenuItems;
-  const currentHash = window.location.hash.slice(1).split('?')[0];
+  const currentHash = typeof window !== 'undefined' ? window.location.hash.slice(1).split('?')[0] : '';
 
   return (
     <div className="min-h-screen bg-white">

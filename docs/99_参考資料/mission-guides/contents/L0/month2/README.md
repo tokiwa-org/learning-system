@@ -25,30 +25,54 @@
 
 ### Step 2: 初めてのコミットを成功させよう（4時間）
 
-| サブステップ | タイトル | 種別 | 時間 |
-|-------------|---------|------|------|
-| 2-1 | 作業ディレクトリを準備しよう | LESSON | 30分 |
-| 2-2 | git initでリポジトリを作ろう | LESSON | 30分 |
-| 2-3 | git addでステージングしよう | LESSON | 30分 |
-| 2-4 | git commitで変更を記録しよう | LESSON | 30分 |
-| 2-5 | 演習：3つのファイルをコミットしよう | EXERCISE | 90分 |
-| 2-6 | チェックポイント | QUIZ | 30分 |
+| サブステップ | タイトル | 種別 | 時間 | ファイル |
+|-------------|---------|------|------|---------|
+| 2-1 | 作業ディレクトリを準備しよう | LESSON | 30分 | [step2_1_directory.md](./step2_1_directory.md) |
+| 2-2 | git initでリポジトリを作ろう | LESSON | 30分 | [step2_2_init.md](./step2_2_init.md) |
+| 2-3 | git addでステージングしよう | LESSON | 30分 | [step2_3_add.md](./step2_3_add.md) |
+| 2-4 | git commitで変更を記録しよう | LESSON | 30分 | [step2_4_commit.md](./step2_4_commit.md) |
+| 2-5 | 演習：3つのファイルをコミットしよう | EXERCISE | 90分 | [step2_5_exercise.md](./step2_5_exercise.md) |
+| 2-6 | チェックポイント | QUIZ | 30分 | [step2_6_quiz.md](./step2_6_quiz.md) |
 
 ### Step 3: リモートリポジトリと同期しよう（4時間）
 
-（以下略）
+| サブステップ | タイトル | 種別 | 時間 | ファイル |
+|-------------|---------|------|------|---------|
+| 3-1 | リモートリポジトリとは | LESSON | 30分 | [step3_1_remote_intro.md](./step3_1_remote_intro.md) |
+| 3-2 | GitHubアカウントを作成しよう | LESSON | 30分 | [step3_2_github_account.md](./step3_2_github_account.md) |
+| 3-3 | リモートリポジトリを作成しよう | LESSON | 30分 | [step3_3_create_repo.md](./step3_3_create_repo.md) |
+| 3-4 | git remoteでリモートを登録しよう | LESSON | 30分 | [step3_4_remote.md](./step3_4_remote.md) |
+| 3-5 | git pushで変更をアップロードしよう | LESSON + EXERCISE | 60分 | [step3_5_push.md](./step3_5_push.md) |
+| 3-6 | git pullで変更をダウンロードしよう | LESSON + EXERCISE | 60分 | [step3_6_pull.md](./step3_6_pull.md) |
 
 ### Step 4: 変更履歴を読み解こう（4時間）
 
-（以下略）
+| サブステップ | タイトル | 種別 | 時間 | ファイル |
+|-------------|---------|------|------|---------|
+| 4-1 | git logの基本を覚えよう | LESSON | 30分 | [step4_1_log_basic.md](./step4_1_log_basic.md) |
+| 4-2 | git logのオプションを使いこなそう | LESSON | 30分 | [step4_2_log_options.md](./step4_2_log_options.md) |
+| 4-3 | git diffで変更内容を確認しよう | LESSON | 30分 | [step4_3_diff.md](./step4_3_diff.md) |
+| 4-4 | git showでコミット詳細を見よう | LESSON | 30分 | [step4_4_show.md](./step4_4_show.md) |
+| 4-5 | 演習：履歴を調査しよう | EXERCISE | 90分 | [step4_5_exercise.md](./step4_5_exercise.md) |
+| 4-6 | チェックポイント | QUIZ | 30分 | [step4_6_quiz.md](./step4_6_quiz.md) |
 
 ### Step 5: 間違いを取り消す方法を覚えよう（4時間）
 
-（以下略）
+| サブステップ | タイトル | 種別 | 時間 | ファイル |
+|-------------|---------|------|------|---------|
+| 5-1 | 取り消しパターンを理解しよう | LESSON | 30分 | [step5_1_undo_patterns.md](./step5_1_undo_patterns.md) |
+| 5-2 | git checkoutで変更を元に戻そう | LESSON | 30分 | [step5_2_checkout.md](./step5_2_checkout.md) |
+| 5-3 | git resetでステージングを取り消そう | LESSON | 30分 | [step5_3_reset.md](./step5_3_reset.md) |
+| 5-4 | git revertでコミットを打ち消そう | LESSON | 30分 | [step5_4_revert.md](./step5_4_revert.md) |
+| 5-5 | 演習：間違いを取り消そう | EXERCISE | 90分 | [step5_5_exercise.md](./step5_5_exercise.md) |
+| 5-6 | チェックポイント | QUIZ | 30分 | [step5_6_quiz.md](./step5_6_quiz.md) |
 
 ### Step 6: Git基礎卒業試験（2時間）
 
-（以下略）
+| サブステップ | タイトル | 種別 | 時間 | ファイル |
+|-------------|---------|------|------|---------|
+| 6-1 | 総合演習：チーム開発シミュレーション | EXERCISE | 90分 | [step6_1_final_exercise.md](./step6_1_final_exercise.md) |
+| 6-2 | 卒業クイズ | QUIZ | 30分 | [step6_2_final_quiz.md](./step6_2_final_quiz.md) |
 
 ---
 
